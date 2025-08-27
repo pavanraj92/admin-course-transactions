@@ -93,25 +93,144 @@
                         <div class="col-md-4">
                             <div class="card">
                                 <div class="card-header bg-primary">
-                                    <h5 class="mb-0 text-white font-bold">Metadata</h5>
+                                    <h5 class="mb-0 text-white font-bold">Purchase Calculation</h5>
                                 </div>
                                 <div class="card-body">
-                                    @if (!empty($purchase->metadata) && is_array($purchase->metadata))
-                                    <ul class="list-group">
-                                        @foreach ($purchase->metadata as $key => $value)
-                                        <li class="list-group-item">
-                                            <strong>{{ ucfirst($key) }}:</strong>
-                                            {{ is_array($value) ? json_encode($value) : $value }}
-                                        </li>
-                                        @endforeach
-                                    </ul>
-                                    @else
-                                    <p class="text-muted">No additional metadata</p>
-                                    @endif
+                                    @php
+                                    $discount = $purchase->discount_value ?? 0;
+                                    $amountAfterDiscount = $purchase->amount - $discount;
+
+                                    $commissionAmount = 0;
+                                    if ($purchase->commission_type === 'percentage') {
+                                    $commissionAmount = ($amountAfterDiscount * $purchase->commission_value) / 100;
+                                    } elseif ($purchase->commission_type === 'fixed') {
+                                    $commissionAmount = $purchase->commission_value;
+                                    }
+
+                                    $netRevenue = $amountAfterDiscount - $commissionAmount;
+                                    @endphp
+
+                                    <table class="table table-bordered">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Description</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Original Amount</td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($purchase->amount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Discount
+                                                    @if($purchase->coupon_id)
+                                                    (Coupon Applied)
+                                                    @endif
+                                                </td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($discount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Amount After Discount</td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($amountAfterDiscount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Commission Type</td>
+                                                <td>{{ ucfirst($purchase->commission_type) ?? '—' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Commission Value</td>
+                                                <td>
+                                                    @if($purchase->commission_type === 'percentage')
+                                                    {{ $purchase->commission_value }}%
+                                                    @elseif($purchase->commission_type === 'fixed')
+                                                    {{ config('GET.currency_sign') }}{{ number_format($purchase->commission_value, 2) }}
+                                                    @else
+                                                    —
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Commission Amount</td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($commissionAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Net Revenue</td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($netRevenue, 2) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
+
                             </div>
                         </div>
                     </div> <!-- /.row -->
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-primary">
+                                    <h5 class="mb-0 text-white font-bold">Course Purchase Summary</h5>
+                                </div>
+                                <div class="card-body">
+                                    @php
+                                    $discount = $purchase->discount_value ?? 0;
+                                    $amountAfterDiscount = $purchase->amount - $discount;
+
+                                    $commissionAmount = 0;
+                                    if ($purchase->commission_type === 'percentage') {
+                                    $commissionAmount = ($amountAfterDiscount * $purchase->commission_value) / 100;
+                                    } elseif ($purchase->commission_type === 'fixed') {
+                                    $commissionAmount = $purchase->commission_value;
+                                    }
+
+                                    $netRevenue = $amountAfterDiscount - $commissionAmount;
+                                    @endphp
+
+                                    <table class="table table-bordered text-right">
+                                        <thead class="thead-light">
+                                            <tr class="">
+                                                <th class="text-left">Description</th>
+                                                <th class="text-right">Amount</th>
+                                            </tr>
+                                            
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-left"><strong>Course:</strong> {{ $purchase->course->title ?? '—' }}</td>
+                                                <td>{{ config('GET.currency_sign') }}{{ number_format($purchase->amount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-left"><strong>Discount</strong>
+                                                    @if($purchase->coupon_id)
+                                                    (Coupon Applied)
+                                                    @endif
+                                                </td>
+                                                <td>- {{ config('GET.currency_sign') }}{{ number_format($discount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-left"><strong>Amount After Discount</strong></td>
+                                                <td>= {{ config('GET.currency_sign') }}{{ number_format($amountAfterDiscount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-left"><strong>Commission ({{ ucfirst($purchase->commission_type) }})</strong></td>
+                                                <td>- {{ $purchase->commission_type === 'percentage' ? $purchase->commission_value . '%' : config('GET.currency_sign') . number_format($purchase->commission_value, 2) }}
+                                                    <br>({{ config('GET.currency_sign') }}{{ number_format($commissionAmount, 2) }})
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-left"><strong>Net Revenue</strong></td>
+                                                <td>= {{ config('GET.currency_sign') }}{{ number_format($netRevenue, 2) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
 
                 </div>
             </div>
