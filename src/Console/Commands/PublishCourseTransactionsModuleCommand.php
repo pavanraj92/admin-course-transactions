@@ -22,7 +22,7 @@ class PublishCourseTransactionsModuleCommand extends Command
 
         // Publish with namespace transformation
         $this->publishWithNamespaceTransformation();
-
+        
         // Publish other files
         $this->call('vendor:publish', [
             '--tag' => 'transaction',
@@ -38,13 +38,15 @@ class PublishCourseTransactionsModuleCommand extends Command
 
     protected function publishWithNamespaceTransformation()
     {
-        $basePath = dirname(dirname(__DIR__)); // Go up to packages/admin/transactions/src
+        $basePath = dirname(dirname(__DIR__)); // Go up to packages/admin/products/src
 
         $filesWithNamespaces = [
             // Controllers
+            $basePath . '/Controllers/CoursePurchaseManagerController.php' => base_path('Modules/Transactions/app/Http/Controllers/Admin/CoursePurchaseManagerController.php'),
             $basePath . '/Controllers/TransactionManagerController.php' => base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php'),
 
             // Models
+            $basePath . '/Models/CoursePurchase.php' => base_path('Modules/Transactions/app/Models/CoursePurchase.php'),
             $basePath . '/Models/Transaction.php' => base_path('Modules/Transactions/app/Models/Transaction.php'),
 
             // Routes
@@ -54,10 +56,10 @@ class PublishCourseTransactionsModuleCommand extends Command
         foreach ($filesWithNamespaces as $source => $destination) {
             if (File::exists($source)) {
                 File::ensureDirectoryExists(dirname($destination));
-
+                
                 $content = File::get($source);
                 $content = $this->transformNamespaces($content, $source);
-
+                
                 File::put($destination, $content);
                 $this->info("Published: " . basename($destination));
             } else {
@@ -79,6 +81,7 @@ class PublishCourseTransactionsModuleCommand extends Command
             'use admin\\course_transactions\\Models\\' => 'use Modules\\Transactions\\app\\Models\\',
 
             // Class references in routes
+            'admin\\course_transactions\\Controllers\\CoursePurchaseManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\CoursePurchaseManagerController',
             'admin\\course_transactions\\Controllers\\TransactionManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
         ];
 
@@ -89,6 +92,11 @@ class PublishCourseTransactionsModuleCommand extends Command
 
         // Handle specific file types
         if (str_contains($sourceFile, 'Controllers')) {
+            $content = str_replace(
+                'use admin\\course_transactions\\Models\\CoursePurchase;',
+                'use Modules\\Transactions\\app\\Models\\CoursePurchase;',
+                $content
+            );
             $content = str_replace(
                 'use admin\\course_transactions\\Models\\Transaction;',
                 'use Modules\\Transactions\\app\\Models\\Transaction;',

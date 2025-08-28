@@ -24,7 +24,7 @@ class DebugCourseTransactionsCommand extends Command
             $this->error("❌ Module routes not found");
         }
 
-        $packageRoutes = base_path('packages/admin/transactions/src/routes/web.php');
+        $packageRoutes = base_path('packages/admin/course_transactions/src/routes/web.php');
         if (File::exists($packageRoutes)) {
             $this->info("✅ Package routes found: {$packageRoutes}");
             $this->info("   Last modified: " . date('Y-m-d H:i:s', filemtime($packageRoutes)));
@@ -36,7 +36,7 @@ class DebugCourseTransactionsCommand extends Command
         $this->info("\n👀 View Loading Priority:");
         $viewPaths = [
             'Module views' => base_path('Modules/Transactions/resources/views'),
-            'Published views' => resource_path('views/admintransactions'),
+            'Published views' => resource_path('views/admin/transactions'),
             'Package views' => base_path('packages/admin/course_transactions/resources/views'),
         ];
         
@@ -50,19 +50,24 @@ class DebugCourseTransactionsCommand extends Command
         
         // Check controller resolution
         $this->info("\n🎯 Controller Resolution:");
-        $controllerClass = 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController';
-        
-        if (class_exists($controllerClass)) {
+       $controllers = [
+            'CoursePurchaseManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\CoursePurchaseManagerController',
+            'TransactionManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
+        ];
+
+         foreach ($controllers as $label => $controllerClass) {
+            $this->info("Checking {$label}: {$controllerClass}");
+            if (class_exists($controllerClass)) {
             $this->info("✅ Controller class found: {$controllerClass}");
-            
             $reflection = new \ReflectionClass($controllerClass);
             $this->info("   File: " . $reflection->getFileName());
             $this->info("   Last modified: " . date('Y-m-d H:i:s', filemtime($reflection->getFileName())));
-        } else {
+            } else {
             $this->error("❌ Controller class not found: {$controllerClass}");
+            }
         }
 
-        // Show current routes
+       // Show current routes
         $this->info("\n🛣️  Current Routes:");
         $routes = Route::getRoutes();
         $transactionRoutes = [];
@@ -70,7 +75,10 @@ class DebugCourseTransactionsCommand extends Command
         foreach ($routes as $route) {
             $action = $route->getAction();
             if (isset($action['controller'])) {
-            if ( str_contains($action['controller'], 'TransactionManagerController')) {
+            if (
+                str_contains($action['controller'], 'CoursePurchaseManagerController') ||
+                str_contains($action['controller'], 'TransactionManagerController')
+            ) {
                 $transactionRoutes[] = [
                 'uri' => $route->uri(),
                 'methods' => implode('|', $route->methods()),
@@ -88,3 +96,4 @@ class DebugCourseTransactionsCommand extends Command
         }
     }
 }
+

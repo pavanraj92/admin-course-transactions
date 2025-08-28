@@ -16,7 +16,10 @@ class CheckModuleStatusCommand extends Command
 
         // Check if module files exist
         $moduleFiles = [
-            'Transaction Controller' => base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php'),
+            'CoursePurchaseManagerController' => base_path('Modules/Transactions/app/Http/Controllers/Admin/CoursePurchaseManagerController.php'),
+            'CoursePurchase Model' => base_path('Modules/Transactions/app/Models/CoursePurchase.php'),
+
+            'TransactionManagerController' => base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php'),
             'Transaction Model' => base_path('Modules/Transactions/app/Models/Transaction.php'),
 
             'Routes' => base_path('Modules/Transactions/routes/web.php'),
@@ -40,21 +43,26 @@ class CheckModuleStatusCommand extends Command
         }
 
         // Check namespace in controller
-        $controllerPath = base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php');
+        $controllers = [
+            'CoursePurchaseManagerController' => base_path('Modules/Transactions/app/Http/Controllers/Admin/CoursePurchaseManagerController.php'),
+            'TransactionManagerController' => base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php'),
+        ];
 
-        if (File::exists($controllerPath)) {
+        foreach ($controllers as $name => $controllerPath) {
+            if (File::exists($controllerPath)) {
             $content = File::get($controllerPath);
             if (str_contains($content, 'namespace Modules\Transactions\app\Http\Controllers\Admin;')) {
-                $this->info("\n✅ Controller namespace: CORRECT");
+                $this->info("\n✅ {$name} namespace: CORRECT");
             } else {
-                $this->error("\n❌ Controller namespace: INCORRECT");
+                $this->error("\n❌ {$name} namespace: INCORRECT");
             }
-            
+
             // Check for test comment
             if (str_contains($content, 'Test comment - this should persist after refresh')) {
-                $this->info("✅ Test comment: FOUND (changes are persisting)");
+                $this->info("✅ Test comment in {$name}: FOUND (changes are persisting)");
             } else {
-                $this->warn("⚠️  Test comment: NOT FOUND");
+                $this->warn("⚠️  Test comment in {$name}: NOT FOUND");
+            }
             }
         }
 

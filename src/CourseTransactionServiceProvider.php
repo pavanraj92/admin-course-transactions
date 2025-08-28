@@ -12,66 +12,42 @@ class CourseTransactionServiceProvider extends ServiceProvider
 {
     public function boot()
     {
-        $this->registerViewNamespaces();
-        $this->registerMigrations();
-        $this->registerConfigs();
-        $this->registerPublishables();
-        $this->registerAdminRoutes();
-    }
-
-    protected function registerViewNamespaces()
-    {
-        // Transaction views
+        // Load routes, views, migrations from the package  
         $this->loadViewsFrom([
-            base_path('Modules/Transactions/resources/views'),
-            resource_path('views/admin/transaction'),
-            __DIR__ . '/../resources/views'
+            base_path('Modules/Transactions/resources/views'), // Published module views first
+            resource_path('views/admin/transaction'), // Published views second
+            __DIR__ . '/../resources/views'      // Package views as fallback
         ], 'transaction');
 
-        // Purchase views
-        $this->loadViewsFrom([
-            base_path('Modules/Transactions/resources/views'),
-            resource_path('views/admin/purchase'),
-            __DIR__ . '/../resources/views'
-        ], 'purchase');
+        $this->mergeConfigFrom(__DIR__ . '/../config/transaction.php', 'transaction.constants');
 
-
-        // Extra namespace for explicit usage
+        // Also register module views with a specific namespace for explicit usage
         if (is_dir(base_path('Modules/Transactions/resources/views'))) {
             $this->loadViewsFrom(base_path('Modules/Transactions/resources/views'), 'transactions-module');
         }
-    }
-
-    protected function registerMigrations()
-    {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        $publishedMigrations = base_path('Modules/Transactions/database/migrations');
-        if (is_dir($publishedMigrations)) {
-            $this->loadMigrationsFrom($publishedMigrations);
+        // Also load migrations from published module if they exist
+        if (is_dir(base_path('Modules/Transactions/database/migrations'))) {
+            $this->loadMigrationsFrom(base_path('Modules/Transactions/database/migrations'));
         }
-    }
 
-    protected function registerConfigs()
-    {
-        $this->mergeConfigFrom(__DIR__ . '/../config/transaction.php', 'transaction.constants');
-        $this->mergeConfigFrom(__DIR__ . '/../config/transaction.php', 'transactions.config');
-
-        $publishedConfig = base_path('Modules/Transactions/config/transaction.php');
-        if (file_exists($publishedConfig)) {
-            $this->mergeConfigFrom($publishedConfig, 'transactions.config');
+        // Also merge config from published module if it exists
+        if (file_exists(base_path('Modules/Transactions/config/transactions.php'))) {
+            $this->mergeConfigFrom(base_path('Modules/Transactions/config/transactions.php'), 'transaction.constants');
         }
-    }
 
-    protected function registerPublishables()
-    {
+        // Only publish automatically during package installation, not on every request
+        // Use 'php artisan transactions:publish' command for manual publishing
+        // $this->publishWithNamespaceTransformation();
+
+        // Standard publishing for non-PHP files
         $this->publishes([
-            __DIR__ . '/../database/migrations' => base_path('Modules/Transactions/database/migrations'),
-            __DIR__ . '/../resources/views'     => base_path('Modules/Transactions/resources/views/'),
             __DIR__ . '/../config/' => base_path('Modules/Transactions/config/'),
+            __DIR__ . '/../database/migrations' => base_path('Modules/Transactions/database/migrations'),
+            __DIR__ . '/../resources/views' => base_path('Modules/Transactions/resources/views/'),
         ], 'transaction');
 
-        $this->publishWithNamespaceTransformation();
+        $this->registerAdminRoutes();
     }
 
     protected function registerAdminRoutes()
@@ -115,65 +91,55 @@ class CourseTransactionServiceProvider extends ServiceProvider
      */
     protected function publishWithNamespaceTransformation()
     {
-        $moduleBase = base_path('Modules/Transactions');
-        $srcBase = __DIR__ . '/../src';
-
         // Define the files that need namespace transformation
         $filesWithNamespaces = [
-
             // Controllers
-            "$srcBase/Controllers/TransactionManagerController.php"     => "$moduleBase/app/Http/Controllers/Admin/TransactionManagerController.php",
-            "$srcBase/Controllers/CoursePurchaseManagerController.php"  => "$moduleBase/app/Http/Controllers/Admin/CoursePurchaseManagerController.php",
+            __DIR__ . '/../src/Controllers/CoursePurchaseManagerController.php' => base_path('Modules/Transactions/app/Http/Controllers/Admin/CoursePurchaseManagerController.php'),
+            __DIR__ . '/../src/Controllers/TransactionManagerController.php' => base_path('Modules/Transactions/app/Http/Controllers/Admin/TransactionManagerController.php'),
 
             // Models
-            "$srcBase/Models/Transaction.php"       => "$moduleBase/app/Models/Transaction.php",
-            "$srcBase/Models/CoursePurchase.php"    => "$moduleBase/app/Models/CoursePurchase.php",
+            __DIR__ . '/../src/Models/CoursePurchase.php' => base_path('Modules/Transactions/app/Models/CoursePurchase.php'),
+            __DIR__ . '/../src/Models/Transaction.php' => base_path('Modules/Transactions/app/Models/Transaction.php'),
 
             // Routes
-            "$srcBase/routes/web.php" => "$moduleBase/routes/web.php",
+            __DIR__ . '/routes/web.php' => base_path('Modules/Transactions/routes/web.php'),
         ];
 
-        foreach ($filesWithNamespaces as $from => $to) {
-            if (File::exists($from)) {
-                // Ensure the destination directory exists
-                $destinationDir = dirname($to);
-                if (!File::isDirectory($destinationDir)) {
-                    File::makeDirectory($destinationDir, 0755, true);
-                }
+        foreach ($filesWithNamespaces as $source => $destination) {
+            if (File::exists($source)) {
+                // Create destination directory if it doesn't exist
+                File::ensureDirectoryExists(dirname($destination));
 
                 // Read the source file
-                $content = File::get($from);
+                $content = File::get($source);
 
                 // Transform namespaces based on file type
-                if (str_contains($to, '/Controllers/')) {
-                    $content = str_replace('namespace admin\transactions\Controllers;', 'namespace Modules\Transactions\app\Http\Controllers\Admin;', $content);
-                    $content = str_replace('use admin\transactions\Models\\', 'use Modules\Transactions\app\Models\\', $content);
-                } elseif (str_contains($to, '/Models/')) {
-                    $content = str_replace('namespace admin\transactions\Models;', 'namespace Modules\Transactions\app\Models;', $content);
-                } elseif (str_contains($to, '/routes/')) {
-                    $content = str_replace('use admin\transactions\Controllers\\', 'use Modules\Transactions\app\Http\Controllers\Admin\\', $content);
-                }
+                $content = $this->transformNamespaces($content, $source);
 
-                // Write the transformed content
-                File::put($to, $content);
+                // Write the transformed content to destination
+                File::put($destination, $content);
             }
         }
     }
 
+    /**
+     * Transform namespaces in PHP files
+     */
     protected function transformNamespaces($content, $sourceFile)
     {
         // Define namespace mappings
         $namespaceTransforms = [
             // Main namespace transformations
-            'namespace admin\\transactions\\Controllers;'    => 'namespace Modules\\Transactions\\app\\Http\\Controllers\\Admin;',
-            'namespace admin\\transactions\\Models;'         => 'namespace Modules\\Transactions\\app\\Models;',
+            'namespace admin\\course_transactions\\Controllers;' => 'namespace Modules\\Transactions\\app\\Http\\Controllers\\Admin;',
+            'namespace admin\\course_transactions\\Models;' => 'namespace Modules\\Transactions\\app\\Models;',
 
             // Use statements transformations
-            'use admin\\transactions\\Controllers\\'         => 'use Modules\\Transactions\\app\\Http\\Controllers\\Admin\\',
-            'use admin\\transactions\\Models\\'              => 'use Modules\\Transactions\\app\\Models\\',
+            'use admin\\course_transactions\\Controllers\\' => 'use Modules\\Transactions\\app\\Http\\Controllers\\Admin\\',
+            'use admin\\course_transactions\\Models\\' => 'use Modules\\Transactions\\app\\Models\\',
 
             // Class references in routes
-            'admin\\transactions\\Controllers\\TransactionManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
+            'admin\\course_transactions\\Controllers\\CoursePurchaseManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\CoursePurchaseManagerController',
+            'admin\\course_transactions\\Controllers\\TransactionManagerController' => 'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
         ];
 
         // Apply transformations
@@ -186,6 +152,8 @@ class CourseTransactionServiceProvider extends ServiceProvider
             $content = $this->transformControllerNamespaces($content);
         } elseif (str_contains($sourceFile, 'Models')) {
             $content = $this->transformModelNamespaces($content);
+        } elseif (str_contains($sourceFile, 'Requests')) {
+            $content = $this->transformRequestNamespaces($content);
         } elseif (str_contains($sourceFile, 'routes')) {
             $content = $this->transformRouteNamespaces($content);
         }
@@ -193,12 +161,20 @@ class CourseTransactionServiceProvider extends ServiceProvider
         return $content;
     }
 
+    /**
+     * Transform controller-specific namespaces
+     */
     protected function transformControllerNamespaces($content)
     {
         // Update use statements for models and requests
         $content = str_replace(
-            'use admin\\transactions\\Models\\Transaction;',
-            'use Modules\\transactions\\app\\Models\\Transaction;',
+            'use admin\\course_transactions\\Models\\CoursePurchase;',
+            'use Modules\\Transactions\\app\\Models\\CoursePurchase;',
+            $content
+        );
+        $content = str_replace(
+            'use admin\\course_transactions\\Models\\Transaction;',
+            'use Modules\\Transactions\\app\\Models\\Transaction;',
             $content
         );
 
@@ -210,11 +186,17 @@ class CourseTransactionServiceProvider extends ServiceProvider
      */
     protected function transformModelNamespaces($content)
     {
-        return str_replace(
-            'namespace admin\\transactions\\Models;',
-            'namespace Modules\\transactions\\app\\Models;',
-            $content
-        );
+        // Any model-specific transformations
+        return $content;
+    }
+
+    /**
+     * Transform request-specific namespaces
+     */
+    protected function transformRequestNamespaces($content)
+    {
+        // Any request-specific transformations
+        return $content;
     }
 
     /**
@@ -224,8 +206,13 @@ class CourseTransactionServiceProvider extends ServiceProvider
     {
         // Update controller references in routes
         $content = str_replace(
-            'admin\\transactions\\Controllers\\TransactionManagerController',
-            'Modules\\transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
+            'admin\\course_transactions\\Controllers\\CoursePurchaseManagerController',
+            'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\CoursePurchaseManagerController',
+            $content
+        );
+        $content = str_replace(
+            'admin\\course_transactions\\Controllers\\TransactionManagerController',
+            'Modules\\Transactions\\app\\Http\\Controllers\\Admin\\TransactionManagerController',
             $content
         );
 
