@@ -188,6 +188,21 @@ class CourseTransactionServiceProvider extends ServiceProvider
     protected function transformModelNamespaces($content)
     {
         // Any model-specific transformations
+        $content = str_replace(
+            'use admin\users\Models\User;',
+            'use Modules\\Users\\app\\Models\\User;',
+            $content
+        );
+        $content = str_replace(
+            'use admin\courses\Models\Course;',
+            'use Modules\\Courses\\app\\Models\\Course;',
+            $content
+        );
+        $content = str_replace(
+            'admin\course_transactions\Models\Transaction;',
+            'use Modules\\Transactions\\app\\Models\\Transaction;',
+            $content
+        );
         return $content;
     }
 

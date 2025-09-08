@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kyslik\ColumnSortable\Sortable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use admin\users\Models\User;
 
 class Transaction extends Model
 {
@@ -55,9 +56,7 @@ class Transaction extends Model
 
     public function user()
     {
-        if (class_exists(\admin\users\Models\User::class)) {
-            return $this->belongsTo(\admin\users\Models\User::class, 'user_id');
-        }
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public static function getPerPageLimit(): int

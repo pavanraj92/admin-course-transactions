@@ -22,7 +22,7 @@ class PublishCourseTransactionsModuleCommand extends Command
 
         // Publish with namespace transformation
         $this->publishWithNamespaceTransformation();
-        
+
         // Publish other files
         $this->call('vendor:publish', [
             '--tag' => 'transaction',
@@ -56,10 +56,10 @@ class PublishCourseTransactionsModuleCommand extends Command
         foreach ($filesWithNamespaces as $source => $destination) {
             if (File::exists($source)) {
                 File::ensureDirectoryExists(dirname($destination));
-                
+
                 $content = File::get($source);
                 $content = $this->transformNamespaces($content, $source);
-                
+
                 File::put($destination, $content);
                 $this->info("Published: " . basename($destination));
             } else {
@@ -99,6 +99,22 @@ class PublishCourseTransactionsModuleCommand extends Command
             );
             $content = str_replace(
                 'use admin\\course_transactions\\Models\\Transaction;',
+                'use Modules\\Transactions\\app\\Models\\Transaction;',
+                $content
+            );
+        } elseif (str_contains($sourceFile, 'Models')) {
+            $content = str_replace(
+                'use admin\users\Models\User;',
+                'use Modules\\Users\\app\\Models\\User;',
+                $content
+            );
+            $content = str_replace(
+                'use admin\courses\Models\Course;',
+                'use Modules\\Courses\\app\\Models\\Course;',
+                $content
+            );
+            $content = str_replace(
+                'admin\course_transactions\Models\Transaction;',
                 'use Modules\\Transactions\\app\\Models\\Transaction;',
                 $content
             );
