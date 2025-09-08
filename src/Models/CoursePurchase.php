@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Config;
 use Kyslik\ColumnSortable\Sortable;
+use admin\users\Models\User;
+use admin\courses\Models\Course;
+use admin\course_transactions\Models\Transaction;
 
 class CoursePurchase extends Model
 {
@@ -70,23 +73,17 @@ class CoursePurchase extends Model
 
     public function user()
     {
-        if (class_exists(\admin\users\Models\User::class)) {
-            return $this->belongsTo(\admin\users\Models\User::class);
-        }
+        return $this->belongsTo(User::class);
     }
 
     public function course()
     {
-        if (class_exists(\admin\courses\Models\Course::class)) {
-            return $this->belongsTo(\admin\courses\Models\Course::class);
-        }
+        return $this->belongsTo(Course::class);
     }
 
     public function transaction()
     {
-        if (class_exists(\admin\course_transactions\Models\Transaction::class)) {
-            return $this->belongsTo(\admin\course_transactions\Models\Transaction::class);
-        }
+        return $this->belongsTo(Transaction::class);
     }
 
     // Filtering logic (like we discussed for transactions)
